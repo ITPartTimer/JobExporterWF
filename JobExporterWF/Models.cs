@@ -31,6 +31,7 @@ namespace JobExporterWF.Models
         public decimal Wdth { get; set; }
         public int Stp { get; set; }
         public int Pos { get; set; }
+        public int Wgt { get; set; }
     }
 
     public class SO
@@ -53,8 +54,7 @@ namespace JobExporterWF.Models
 
     public class HdrFile
     {
-        // Detailed information about each SO from List<SO>
-        // Stratix transaction common items joined with CPS tolerances
+        // Object that will be exported to EXCEL
         public string Job { get; set; }
         public string Cust { get; set; } = "Calstrip";
         public string Mtl { get; set; }
@@ -65,6 +65,13 @@ namespace JobExporterWF.Models
         public decimal GaP { get; set; }
         public decimal GaN { get; set; }
         public string Note { get; set; } = "None";
+        public int Wgt { get; set; }
+        public string ArbName { get; set; } = "HEAD 1";
+        public string Reg { get; set; } = "Center Registration";
+        public string KnifeSet { get; set; } = "Set 1";
+        public decimal Sep { get; set; } = 0.125m;
+        public decimal SepClr { get; set; } = 0.060m;
+        public string RingSet { get; set; } = "Set 1";
     }
 
     public class MultFile
@@ -81,7 +88,8 @@ namespace JobExporterWF.Models
 
     public class MultDetail
     {
-        // Object that will be exported to EXCEL
+        // Detailed information about each SO from List<SO>
+        // Stratix transaction common items joined with CPS tolerances
         public string Pfx { get; set; }
         public string Ref { get; set; }
         public string Itm { get; set; }

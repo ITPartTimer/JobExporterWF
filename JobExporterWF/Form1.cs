@@ -39,14 +39,17 @@ namespace JobExporterWF
             lblError.Text = "";
             lblFiles.Text = "";
             pBar.Value = 0;
+
+            // Not sure why, but neither will clear the ListViews
             lvHeader.Clear();
-            lvMults.Clear();
+            lvMults.Clear();         
 
             /*
              * Find Job in schedule iptpsh_rec.  If not found, a null 
              * value is returned with a generic exception message. Format
              * error message and return on catch so program does not continue.
              */
+            #region FindJob
             DataAccess objFindJob = new DataAccess();
 
             bool fnd = false;
@@ -66,7 +69,8 @@ namespace JobExporterWF
 
                 return;
             }
-           
+            #endregion
+
             #region Consume
             /*
             Get Planned Consumption from Stratix.
@@ -85,6 +89,7 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
                      
@@ -117,6 +122,7 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
             
@@ -160,6 +166,7 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
 
@@ -183,6 +190,15 @@ namespace JobExporterWF
             // Consume query was ordered by seq, so first member contains the TagNo for the job
             string tag = lstConsume.Select(x => x.Tag).First().ToString();
 
+            // NEED TO FIX.  FIND A BETTER WAY TO FIND GA ON JOB
+            // If Toll or some instance I have not figured out, thre will be
+            // NO tag in the planned consumption.  Join to Transaction Common by PO will not work.
+            if (string.IsNullOrEmpty(tag))
+            {
+                lblError.Text = "No tag found on Job";
+                return;
+            }
+
             DataAccess objGa = new DataAccess();
 
             Ga g = new Ga();
@@ -190,10 +206,15 @@ namespace JobExporterWF
             try
             {
                 g = objGa.Get_Ga(tag, lstDetail);
+
+                // If Ga is not found, it could be tolling or a closed PO
+                if (g.NumSize == 0)
+                    throw new Exception("Ga not found for Job");
             }
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
 
@@ -217,6 +238,9 @@ namespace JobExporterWF
                     lstNumSetups.Add(string.Concat(job.ToString(), "-", (i + 1).ToString()));
 
 
+            // lstNumSetups will have same count of members as lstConsume
+            int setupCnt = 0;
+
             List<HdrFile> lstHdr = new List<HdrFile>();
 
             foreach (string j in lstNumSetups)
@@ -230,6 +254,10 @@ namespace JobExporterWF
                 h.Clr = h.KnifeClr * h.Ga;
                 h.GaP = g.GaP;
                 h.GaN = g.GaN;
+                // Get Weight from lstConsume at current position
+                h.Wgt = lstConsume[setupCnt].Wgt;
+
+                setupCnt++;
 
                 // After Pos = 1, if consecutive Pos are same value, you are reslitting
                 //FIX THIS TO ADD RESLIT TO NOTE
@@ -245,11 +273,11 @@ namespace JobExporterWF
             pBar.Value = 60;
 
             //testing
-            Console.WriteLine("==== HDR FILE ====");
-            foreach (HdrFile h in lstHdr)
-            {
-                Console.WriteLine(h.Job + " / " + h.Cust + " / " + h.Mtl + " / " + h.Wdth.ToString() + " / " + h.Ga.ToString() + " / " + h.KnifeClr.ToString() + " / " + h.Clr.ToString() + " / " + h.GaP.ToString() + " / " + h.GaN.ToString() + " / " + h.Note);
-            }
+            //Console.WriteLine("==== HDR FILE ====");
+            //foreach (HdrFile h in lstHdr)
+            //{
+            //    Console.WriteLine(h.Job + " / " + h.Cust + " / " + h.Mtl + " / " + h.Wdth.ToString() + " / " + h.Ga.ToString() + " / " + h.KnifeClr.ToString() + " / " + h.Clr.ToString() + " / " + h.GaP.ToString() + " / " + h.GaN.ToString() + " / " + h.Note);
+            //}
             #endregion
 
             #region Build MultFile
@@ -269,6 +297,7 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
 
@@ -332,6 +361,7 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
 
@@ -411,14 +441,14 @@ namespace JobExporterWF
             pBar.Value = 90;
 
             // testing
-            Console.WriteLine("==== MULT FILE ====");
-            foreach (MultFile h in lstMults)
-            {
-                Console.WriteLine(h.Job + " / " + h.Cust + " / " + h.Qty.ToString() + " / " + h.Size.ToString() + " / " + h.WdthP.ToString() + " / " + h.WdthN.ToString() + " / " + h.Knife);
-            }
+            //Console.WriteLine("==== MULT FILE ====");
+            //foreach (MultFile h in lstMults)
+            //{
+            //    Console.WriteLine(h.Job + " / " + h.Cust + " / " + h.Qty.ToString() + " / " + h.Size.ToString() + " / " + h.WdthP.ToString() + " / " + h.WdthN.ToString() + " / " + h.Knife);
+            //}
             #endregion
 
-            #region Exports
+            #region XLSExports
             ExcelExport objXLS = new ExcelExport();
 
             try
@@ -428,6 +458,7 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
 
@@ -438,11 +469,13 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
             #endregion
 
             // Write Hdr and Mults to ListViews
+            #region FillListViews
             try
             {
                 ListView_Fill(lstHdr, lstMults);
@@ -450,6 +483,7 @@ namespace JobExporterWF
             catch (Exception ex)
             {
                 lblError.Text = ex.Message;
+                pBar.Value = 0;
                 return;
             }
 
@@ -462,7 +496,7 @@ namespace JobExporterWF
             string destPath = ConfigurationManager.AppSettings.Get("DestPath");
 
             lblFiles.Text = "Files written:\n" + Path.Combine(destPath, hdrFileName) + "\n" + Path.Combine(destPath, multFileName);
-
+            #endregion
         }
 
         private void ListView_Fill(List<HdrFile> lstHdr, List<MultFile> lstMults)

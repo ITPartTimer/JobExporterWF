@@ -42,8 +42,8 @@ namespace JobExporterWF.XLS
                     foreach (HdrFile m in hdr)
                     {
                         // Use parameters to insert into XLS
-                        cmdText = "Insert into [Sheet1$] (JobRef,Customer,Material,Width,Thickness,KnifeClear,[Clear],GaugePlus,GaugeMinus,[Note])" + 
-                                            "Values(@job,@cust,@mtl,@wdth,@thk,@kclear,@clear,@gplus,@gminus,@note)";
+                        cmdText = "Insert into [Sheet1$] (JobRef,Customer,Material,Width,Thickness,KnifeClear,[Clear],GaugePlus,GaugeMinus,[Note],Weight,ArbName,Reg,KnifeSet,Sep,SepClr,RingSet)" + 
+                                            "Values(@job,@cust,@mtl,@wdth,@thk,@kclear,@clear,@gplus,@gminus,@note,@wgt,@arb,@reg,@kset,@sep,@sepclr,@rset)";
 
                         eCmd.CommandText = cmdText;
 
@@ -59,6 +59,13 @@ namespace JobExporterWF.XLS
                                     new OleDbParameter("@gplus", m.GaP.ToString()),
                                     new OleDbParameter("@gminus", m.GaN.ToString()),
                                     new OleDbParameter("@note", m.Note),
+                                    new OleDbParameter("@wgt", m.Wgt.ToString()),
+                                    new OleDbParameter("@arb", m.ArbName),
+                                    new OleDbParameter("@reg", m.Reg),
+                                    new OleDbParameter("@kset", m.KnifeSet),
+                                    new OleDbParameter("@sep", m.Sep.ToString()),
+                                    new OleDbParameter("@sepclr", m.SepClr.ToString()),
+                                    new OleDbParameter("@rset", m.RingSet.ToString()),
                         });
 
                         eCmd.ExecuteNonQuery();

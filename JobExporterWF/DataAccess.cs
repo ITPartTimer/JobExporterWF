@@ -152,7 +152,7 @@ namespace JobExporterWF.DAL
                 conn.Open();
 
                 OdbcCommand cmd = conn.CreateCommand();
-                cmd.CommandText = "select frc_job_no,frc_cons_seq_no,frc_tag_no,frc_wdth,frc_nbr_stp,frc_arb_pos from iptfrc_rec where frc_coil_no = 1 and frc_job_no = " + job + " order by frc_cons_ln_no"; 
+                cmd.CommandText = "select frc_job_no,frc_cons_seq_no,frc_tag_no,frc_wdth,frc_nbr_stp,frc_arb_pos,frc_cons_wgt from iptfrc_rec where frc_coil_no = 1 and frc_job_no = " + job + " order by frc_cons_ln_no"; 
 
                 OdbcDataReader rdr = cmd.ExecuteReader();
 
@@ -168,6 +168,7 @@ namespace JobExporterWF.DAL
                         c.Wdth = (decimal)rdr["frc_wdth"];
                         c.Stp = Convert.ToInt32(rdr["frc_nbr_stp"]);
                         c.Pos = Convert.ToInt32(rdr["frc_arb_pos"]);
+                        c.Wgt = Convert.ToInt32(rdr["frc_cons_wgt"]);
 
                         lstConsume.Add(c);
                     }
@@ -342,6 +343,8 @@ namespace JobExporterWF.DAL
 
                 // Only returning one value, so don't need a recordset
                 g.NumSize =  Convert.ToDecimal(cmd.ExecuteScalar());
+
+
                
             }
             catch (OdbcException ex)
