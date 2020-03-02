@@ -209,7 +209,7 @@ namespace JobExporterWF.DAL
                 OdbcCommand cmd = conn.CreateCommand();
                 cmd.CommandText = @"select jpp_trgt_ord_info, left(jpp_trgt_ord_info, 2) as pfx, ltrim(substr(jpp_trgt_ord_info, 3, 8), '0') as ref, 
                                         ltrim(substr(jpp_trgt_ord_info, 11, 3), '0') as itm, 
-                                        right(jpp_trgt_ord_info, 2) as sitm from iptjpp_rec where jpp_invt_typ = 'W' and jpp_job_no = " + job;
+                                        right(jpp_trgt_ord_info, 2) as sitm from iptjpp_rec where jpp_invt_typ = 'W' and jpp_part_cus_id is not null and jpp_job_no = " + job;
 
                 OdbcDataReader rdr = cmd.ExecuteReader();
 

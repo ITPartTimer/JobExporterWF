@@ -59,13 +59,13 @@ namespace JobExporterWF.Models
         public string Cust { get; set; } = "Calstrip";
         public string Mtl { get; set; }
         public decimal Wdth { get; set; }
+        public int Wgt { get; set; }
         public decimal Ga { get; set; }
         public decimal KnifeClr { get; set; } = 0.10m;
         public decimal Clr { get; set; }
         public decimal GaP { get; set; }
         public decimal GaN { get; set; }
         public string Note { get; set; } = "None";
-        public int Wgt { get; set; }
         public string ArbName { get; set; } = "HEAD 1";
         public string Reg { get; set; } = "Center Registration";
         public string KnifeSet { get; set; } = "Set 1";

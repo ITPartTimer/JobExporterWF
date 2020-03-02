@@ -502,7 +502,7 @@ namespace JobExporterWF
         private void ListView_Fill(List<HdrFile> lstHdr, List<MultFile> lstMults)
         {
             // lvHeader
-            ColumnHeader hJob, hMtl, hWdth, hGa, hPerc, hClr, hGaP, hGaN, hNote;
+            ColumnHeader hJob, hMtl, hWdth, hWgt, hGa, hPerc, hClr, hGaP, hGaN, hNote;
 
             hJob = new ColumnHeader();
             hJob.Text = "Job-Setup";
@@ -518,6 +518,11 @@ namespace JobExporterWF
             hWdth.Text = "Wdth";
             hWdth.TextAlign = HorizontalAlignment.Left;
             hWdth.Width = 60;
+
+            hWgt = new ColumnHeader();
+            hWgt.Text = "Wgt";
+            hWgt.TextAlign = HorizontalAlignment.Left;
+            hWgt.Width = 60;
 
             hGa = new ColumnHeader();
             hGa.Text = "Ga";
@@ -554,6 +559,7 @@ namespace JobExporterWF
             lvHeader.Columns.Add(hJob);
             lvHeader.Columns.Add(hMtl);
             lvHeader.Columns.Add(hWdth);
+            lvHeader.Columns.Add(hWgt);
             lvHeader.Columns.Add(hGa);
             lvHeader.Columns.Add(hPerc);
             lvHeader.Columns.Add(hClr);
@@ -571,6 +577,7 @@ namespace JobExporterWF
                 lvi.Text = h.Job;
                 lvi.SubItems.Add(h.Mtl);
                 lvi.SubItems.Add(h.Wdth.ToString());
+                lvi.SubItems.Add(h.Wgt.ToString());
                 lvi.SubItems.Add(h.Ga.ToString().TrimEnd('0'));
                 lvi.SubItems.Add(h.KnifeClr.ToString());
                 lvi.SubItems.Add(h.Clr.ToString().TrimEnd('0'));
