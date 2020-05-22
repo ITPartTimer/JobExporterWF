@@ -43,7 +43,7 @@ namespace JobExporterWF.DAL
                     fnd = true;
 
             }
-            catch (OdbcException ex)
+            catch (OdbcException)
             {
                 /*
                  * Throw exception to caller and handle it there.  If you handle
@@ -52,7 +52,7 @@ namespace JobExporterWF.DAL
                  */
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //Console.WriteLine("Find_Job other ex: " + ex.Message);
                 throw;
@@ -67,6 +67,7 @@ namespace JobExporterWF.DAL
             return fnd;
 
         }
+
         [DataObjectMethod(DataObjectMethodType.Select)]
         public List<ArborStratix> Get_Arbors (string job)
         {
@@ -120,12 +121,12 @@ namespace JobExporterWF.DAL
                     }
                 } 
             }
-            catch(OdbcException ex)
+            catch(OdbcException)
             {
                 throw;
                 //Console.WriteLine("arbor odbc ex: " + ex.Message);
             }
-            catch(Exception ex)
+            catch(Exception)
             {
                 throw;
                 //Console.WriteLine("arbor other ex: " + ex.Message);
@@ -152,7 +153,8 @@ namespace JobExporterWF.DAL
                 conn.Open();
 
                 OdbcCommand cmd = conn.CreateCommand();
-                cmd.CommandText = "select frc_job_no,frc_cons_seq_no,frc_tag_no,frc_wdth,frc_nbr_stp,frc_arb_pos,frc_cons_wgt from iptfrc_rec where frc_coil_no = 1 and frc_job_no = " + job + " order by frc_cons_ln_no"; 
+                cmd.CommandText = @"select frc_job_no,frc_cons_seq_no,frc_tag_no,frc_nbr_stp,frc_arb_pos,frc_cons_wgt,frc_ga_size,frc_wdth,frc_frm 
+                                        from iptfrc_rec where frc_coil_no = 1 and frc_job_no = " + job + " order by frc_cons_ln_no"; 
 
                 OdbcDataReader rdr = cmd.ExecuteReader();
 
@@ -164,22 +166,24 @@ namespace JobExporterWF.DAL
 
                         c.Job = Convert.ToInt32(rdr["frc_job_no"]);                    
                         c.Seq = Convert.ToInt32(rdr["frc_cons_seq_no"]);
-                        c.Tag = rdr["frc_tag_no"].ToString().Trim();
-                        c.Wdth = (decimal)rdr["frc_wdth"];
+                        c.Tag = rdr["frc_tag_no"].ToString().Trim();                       
                         c.Stp = Convert.ToInt32(rdr["frc_nbr_stp"]);
                         c.Pos = Convert.ToInt32(rdr["frc_arb_pos"]);
                         c.Wgt = Convert.ToInt32(rdr["frc_cons_wgt"]);
+                        c.Ga = (decimal)rdr["frc_ga_size"];
+                        c.Wdth = (decimal)rdr["frc_wdth"];
+                        c.Frm = rdr["frc_frm"].ToString();
 
                         lstConsume.Add(c);
                     }
                 }
             }
-            catch (OdbcException ex)
+            catch (OdbcException)
             {
                 throw;
                 //Console.WriteLine("consume odbc ex: " + ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
                 //Console.WriteLine("consume other ex: " + ex.Message);
@@ -195,9 +199,9 @@ namespace JobExporterWF.DAL
         }
 
         [DataObjectMethod(DataObjectMethodType.Select)]
-        public List<SO> Get_SOs(string job)
+        public List<Planned> Get_Planned(string job)
         {
-            List<SO> lstSO = new List<SO>();
+            List<Planned> lstPlanned = new List<Planned>();
 
             OdbcConnection conn = new OdbcConnection(STRATIXDataConnString);
 
@@ -205,11 +209,14 @@ namespace JobExporterWF.DAL
             {
                 conn.Open();
 
-                // Try to split with verbatim literal
                 OdbcCommand cmd = conn.CreateCommand();
-                cmd.CommandText = @"select jpp_trgt_ord_info, left(jpp_trgt_ord_info, 2) as pfx, ltrim(substr(jpp_trgt_ord_info, 3, 8), '0') as ref, 
-                                        ltrim(substr(jpp_trgt_ord_info, 11, 3), '0') as itm, 
-                                        right(jpp_trgt_ord_info, 2) as sitm from iptjpp_rec where jpp_invt_typ = 'W' and jpp_part_cus_id is not null and jpp_job_no = " + job;
+                cmd.CommandText = @"select jpp_trgt_ord_info, left(jpp_trgt_ord_info, 2) as pfx,ltrim(substr(jpp_trgt_ord_info, 3, 8), '0') as ref, 
+                                        ltrim(substr(jpp_trgt_ord_info, 11, 3), '0') as itm,right(jpp_trgt_ord_info, 2) as sitm,ppd_ga_size,ppd_wdth,
+                                        jpp_part,pdt_ga_tol_posv,pdt_ga_tol_neg,pdt_wdth_tol_posv,pdt_wdth_tol_neg
+                                        from iptjpp_rec p inner join cprclg_rec cps on cps.clg_part = p.jpp_part
+                                        inner join cprppd_rec ppd on ppd.ppd_part_ctl_no = cps.clg_part_ctl_no
+                                        inner join cprpdt_rec t on t.pdt_part_ctl_no= cps.clg_part_ctl_no
+                                        where jpp_invt_typ = 'W' and jpp_part_cus_id is not null and clg_actv = 1 and jpp_job_no = " + job;
 
                 OdbcDataReader rdr = cmd.ExecuteReader();
 
@@ -217,27 +224,34 @@ namespace JobExporterWF.DAL
                 {
                     while (rdr.Read())
                     {
-                        SO s = new SO();
+                        Planned p = new Planned();
 
-                        s.Trgt = rdr["jpp_trgt_ord_info"].ToString();
-                        s.Pfx = rdr["pfx"].ToString();
-                        s.Ref = rdr["ref"].ToString();
-                        s.Itm = rdr["itm"].ToString();
-                        s.SItm = rdr["sitm"].ToString();
+                        p.Trgt = rdr["jpp_trgt_ord_info"].ToString();
+                        p.Pfx = rdr["pfx"].ToString();
+                        p.Ref = rdr["ref"].ToString();
+                        p.Itm = rdr["itm"].ToString();
+                        p.SItm = rdr["sitm"].ToString();
+                        p.Ga = (decimal)rdr["ppd_ga_size"];
+                        p.Wdth = (decimal)rdr["ppd_wdth"];
+                        p.Part = rdr["jpp_part"].ToString();
+                        p.GaP = (decimal)rdr["pdt_ga_tol_posv"];
+                        p.GaN = (decimal)rdr["pdt_ga_tol_neg"];
+                        p.WdthP = (decimal)rdr["pdt_wdth_tol_posv"];
+                        p.WdthN = (decimal)rdr["pdt_wdth_tol_neg"];
 
-                        lstSO.Add(s);
+                        lstPlanned.Add(p);
                     }
                 }
             }
-            catch (OdbcException ex)
+            catch (OdbcException)
             {
                 throw;
-                //Console.WriteLine("SO odbc ex: " + ex.Message);
+                //Console.WriteLine("consume odbc ex: " + ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
-                //Console.WriteLine("SO other ex: " + ex.Message);
+                //Console.WriteLine("consume other ex: " + ex.Message);
             }
             finally
             {
@@ -246,74 +260,17 @@ namespace JobExporterWF.DAL
                 conn.Dispose();
             }
 
-            return lstSO;
-        }
+            //IEnumerable<Planned> lstUniquePlanned = lstPlanned.GroupBy(x => x.Part).Select(y => y.First());
+
+
+
+            return lstPlanned.GroupBy(x => x.Part).Select(y => y.First()).ToList();
+
+            //return lstPlanned;
+        }      
 
         [DataObjectMethod(DataObjectMethodType.Select)]
-        public List<MultDetail> Get_Details(string qry)
-        {
-            List<MultDetail> lstDetail = new List<MultDetail>();
-
-            OdbcConnection conn = new OdbcConnection(STRATIXDataConnString);
-
-            try
-            {
-                conn.Open();
-
-                // Try to split with verbatim literal
-                OdbcCommand cmd = conn.CreateCommand();
-                cmd.CommandText = @"select ipd_ref_pfx, ipd_ref_no, ipd_ref_itm, ipd_cus_ven_id, ipd_part, ipd_part_ctl_no,ipd_frm, ipd_ga_size, 
-                                        pdt_ga_tol_posv,pdt_ga_tol_neg,ipd_wdth, pdt_wdth_tol_posv,pdt_wdth_tol_neg
-                                        from tctipd_rec ipd inner join cprpdt_rec pdt on ipd.ipd_part_ctl_no = pdt.pdt_part_ctl_no 
-                                        where ipd_ref_no || ipd_ref_itm in (" + qry + ") and ipd_ref_pfx = 'SO'";
-
-                OdbcDataReader rdr = cmd.ExecuteReader();
-
-                using (rdr)
-                {
-                    while (rdr.Read())
-                    {
-                        MultDetail m = new MultDetail();                     
-                        m.Pfx = rdr["ipd_ref_pfx"].ToString();
-                        m.Ref = rdr["ipd_ref_no"].ToString();
-                        m.Itm = rdr["ipd_ref_itm"].ToString();
-                        m.Cus = rdr["ipd_cus_ven_id"].ToString().Trim();
-                        m.Part = rdr["ipd_part"].ToString().Trim();
-                        m.CtlNo = Convert.ToInt32(rdr["ipd_part_ctl_no"]);
-                        m.Frm = rdr["ipd_frm"].ToString().Trim();
-                        m.Ga = (decimal)rdr["ipd_ga_size"];
-                        m.GaP = (decimal)rdr["pdt_ga_tol_posv"];
-                        m.GaN = (decimal)rdr["pdt_ga_tol_neg"];
-                        m.Wdth = (decimal)rdr["ipd_wdth"];
-                        m.WdthP = (decimal)rdr["pdt_wdth_tol_posv"];
-                        m.WdthN = (decimal)rdr["pdt_wdth_tol_neg"];
-
-                        lstDetail.Add(m);
-                    }
-                }
-            }
-            catch (OdbcException ex)
-            {
-                throw;
-                //Console.WriteLine("MultDetail odbc ex: " + ex.Message);
-            }
-            catch (Exception ex)
-            {
-                throw;
-                //Console.WriteLine("MultDetail other ex: " + ex.Message);
-            }
-            finally
-            {
-                // No matter what close and dispose of the connetion
-                conn.Close();
-                conn.Dispose();
-            }
-
-            return lstDetail;
-        }
-
-        [DataObjectMethod(DataObjectMethodType.Select)]
-        public Ga Get_Ga(string tag, List<MultDetail> lstDetail)
+        public Ga Get_Ga(decimal ga, List<Planned> lstPlanned)
         {
             /*
             Ga used on the Job is the Num_Size1 fomr the PPS or the Transaction Common Item.
@@ -326,43 +283,7 @@ namespace JobExporterWF.DAL
             */
             Ga g = new Ga();
 
-            OdbcConnection conn = new OdbcConnection(STRATIXDataConnString);
-
-            try
-            {
-                conn.Open();
-
-                OdbcCommand cmd = conn.CreateCommand();
-                cmd.CommandText = "select ipd_num_size1 "
-                                        + "from iptfrc_rec frc inner join intpcr_rec pcr on frc.frc_itm_ctl_no = pcr.pcr_itm_ctl_no "
-                                        + "inner join tctipd_rec ipd on pcr.pcr_po_pfx = ipd.ipd_ref_pfx "
-                                        + "and pcr.pcr_po_no = ipd.ipd_ref_no and pcr.pcr_po_itm = ipd.ipd_ref_itm "
-                                        + "inner join pnttol_rec tol on pcr.pcr_po_pfx = tol.tol_ref_pfx "
-                                        + "and pcr.pcr_po_no = tol.tol_ref_no and pcr.pcr_po_itm = tol.tol_ref_itm "
-                                        + "where frc.frc_tag_no = " + "'" + tag.ToString() + "'";
-
-                // Only returning one value, so don't need a recordset
-                g.NumSize =  Convert.ToDecimal(cmd.ExecuteScalar());
-
-
-               
-            }
-            catch (OdbcException ex)
-            {
-                throw;
-                //Console.WriteLine("Ga odbc ex: " + ex.Message);
-            }
-            catch (Exception ex)
-            {
-                throw;
-                //Console.WriteLine("Ga other ex: " + ex.Message);
-            }
-            finally
-            {
-                // No matter what close and dispose of the connetion
-                conn.Close();
-                conn.Dispose();
-            }
+            g.Size = ga;
 
             decimal minGa = 0;
             decimal maxGa = 1;
@@ -371,7 +292,7 @@ namespace JobExporterWF.DAL
              * Gauge min to max is the largest min and smallest max
              * of the CPS gauge tolerance listed on the Job
              */
-            foreach (MultDetail m in lstDetail)
+            foreach (Planned m in lstPlanned)
             {
                 // If the current is >= stored min, replace
                 if ((m.Ga - m.GaN) >= minGa)
@@ -383,8 +304,8 @@ namespace JobExporterWF.DAL
             }
 
             // KEVIN needs a +/- tolerance, so use master coil gauge and minGa/maxGa range
-            g.GaN = g.NumSize - minGa;
-            g.GaP = maxGa - g.NumSize;
+            g.GaN = ga - minGa;
+            g.GaP = maxGa - ga;
 
             return g;
         }

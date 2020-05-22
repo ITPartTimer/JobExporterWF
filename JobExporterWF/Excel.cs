@@ -68,7 +68,7 @@ namespace JobExporterWF.XLS
                         eCmd.Parameters.Clear();
                     }
                 }
-                catch (OleDbException ex)
+                catch (OleDbException)
                 {
                     throw;
                     //Console.WriteLine("OleDb Hdr error: " + ex.Message);
@@ -126,7 +126,7 @@ namespace JobExporterWF.XLS
                         eCmd.Parameters.Clear();
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     throw;
                     //Console.WriteLine("OleDb Mult error: " + ex.Message);

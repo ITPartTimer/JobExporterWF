@@ -27,11 +27,13 @@ namespace JobExporterWF.Models
         // planned consumtion from iptfrc_rec
         public int Job { get; set; }
         public int Seq { get; set; }
-        public string Tag { get; set; }
-        public decimal Wdth { get; set; }
+        public string Tag { get; set; }       
         public int Stp { get; set; }
         public int Pos { get; set; }
         public int Wgt { get; set; }
+        public decimal Ga { get; set; }
+        public decimal Wdth { get; set; }
+        public string Frm { get; set; }
     }
 
     public class SO
@@ -44,10 +46,26 @@ namespace JobExporterWF.Models
         public string SItm { get; set; }
     }
 
+    public class Planned
+    {
+        public string Trgt { get; set; }
+        public string Pfx { get; set; }
+        public string Ref { get; set; }
+        public string Itm { get; set; }
+        public string SItm { get; set; }
+        public decimal Ga { get; set; }
+        public decimal Wdth { get; set; }
+        public string Part { get; set; }
+        public decimal GaP { get; set; }
+        public decimal GaN { get; set; }
+        public decimal WdthP { get; set; }
+        public decimal WdthN { get; set; }
+    }
+
     public class Ga
     {
         // Master coil gauge and Job gauge min/max tolerance
-        public decimal NumSize { get; set; }
+        public decimal Size { get; set; }
         public decimal GaP { get; set; } = 0;
         public decimal GaN { get; set; } = 0;
     }

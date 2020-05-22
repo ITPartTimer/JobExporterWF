@@ -101,67 +101,21 @@ namespace JobExporterWF
             //}
 
             pBar.Value = 12;
-            #endregion           
-
-            #region SO
-            /*
-            Get Unique SOs from Stratix.
-            Planned Production iptjpp_rec will list each SO on the Job
-            Parse this into a Prefix, Ref, Item and SubItem.
-            This will be used to query Transaction Common Items joined with
-            CPS Tolerances to get item details.           
-            */
-            DataAccess objSO = new DataAccess();
-
-            List<SO> lstSO = new List<SO>();
-
-            try
-            {
-                lstSO = objSO.Get_SOs(job);
-            }
-            catch (Exception ex)
-            {
-                lblError.Text = ex.Message;
-                pBar.Value = 0;
-                return;
-            }
-            
-            // test
-            //Console.WriteLine("==== SO ====");
-            //foreach (SO s in lstSO)
-            //{
-            //    Console.WriteLine(s.Trgt + " / " + s.Pfx + " / " + s.Ref + " / " + s.Itm + " / " + s.SItm);
-            //}
-
-            // Build a list of Ref + Item to be used in the query for Item Details
-            string inQry = "";
-
-            foreach (SO s in lstSO)
-            {
-                inQry = inQry + string.Concat(s.Ref, s.Itm, ",");
-            }
-
-            inQry = inQry.TrimEnd(',');
-
-            pBar.Value = 24;
-
-            // test
-            //Console.WriteLine("inQry: " + inQry);
             #endregion
 
-            #region MultDetail
+            #region Planned
             /*
-            Transaction Common Item Product joined with CPS Tolerances will
-            give you all the detail you need about the cut for each SO (ex:56572-54)
-            on the Job
-            */
-            DataAccess objDetail = new DataAccess();
+           Get Planned Production from Stratix.
+           This is a list of unique SOs on the Job.
+           Join to CPS table to get width and tolernaces
+           */
+            DataAccess objPlanned = new DataAccess();
 
-            List<MultDetail> lstDetail = new List<MultDetail>();
+            List<Planned> lstPlanned = new List<Planned>();
 
             try
             {
-                lstDetail = objDetail.Get_Details(inQry);
+                lstPlanned = objConsume.Get_Planned(job);
             }
             catch (Exception ex)
             {
@@ -170,25 +124,25 @@ namespace JobExporterWF
                 return;
             }
 
-            // test
-            //Console.WriteLine("==== MULT DETAIL ====");
-            //foreach (MultDetail m in lstDetail)
-            //{
-            //    Console.WriteLine(m.Pfx + " / " + m.Ref + " / " + m.Itm + " / " + m.Cus + " / " + m.Part + " / " + m.CtlNo.ToString() + " / " + m.Frm + " / " + m.Ga.ToString() + " / " + m.GaP.ToString() + " / " + m.GaN.ToString() + " / " + m.Wdth.ToString() + " / " + m.WdthP.ToString() + " / " + m.WdthN.ToString());
-            //}
-
-            pBar.Value = 36;
+            pBar.Value = 35;
             #endregion
 
             #region Ga
             /*
-            Get the Gauge listed on the Job
+            Get the Gauge from Planned consumption
             
             Determine the most constrained gauge range from the CPS on the Job
+
+            KEVIN uses the gauge and +/- tolerance to create inspection form.
+            Stratix creates a most constrained gauge range from the list of SOs
+            on the Job.  In this case you know the MIN and MAX allowable gauge.
+            Use the Ga from planned consumtion to determine the +/- range.  It 
+            might not be even or always positive, but the MIN and MAX will be correct.
             */
 
             // Consume query was ordered by seq, so first member contains the TagNo for the job
             string tag = lstConsume.Select(x => x.Tag).First().ToString();
+            decimal ga = (decimal)lstConsume.Select(x => x.Ga).First();
 
             // NEED TO FIX.  FIND A BETTER WAY TO FIND GA ON JOB
             // If Toll or some instance I have not figured out, thre will be
@@ -205,10 +159,10 @@ namespace JobExporterWF
 
             try
             {
-                g = objGa.Get_Ga(tag, lstDetail);
+                g = objGa.Get_Ga(ga, lstPlanned);
 
                 // If Ga is not found, it could be tolling or a closed PO
-                if (g.NumSize == 0)
+                if (g.Size == 0)
                     throw new Exception("Ga not found for Job");
             }
             catch (Exception ex)
@@ -248,9 +202,9 @@ namespace JobExporterWF
                 HdrFile h = new HdrFile();
 
                 h.Job = j;
-                h.Mtl = lstDetail[0].Frm;
+                h.Mtl = lstConsume[0].Frm;
                 h.Wdth = lstConsume[0].Wdth;
-                h.Ga = g.NumSize;
+                h.Ga = g.Size;
                 h.Clr = h.KnifeClr * h.Ga;
                 h.GaP = g.GaP;
                 h.GaN = g.GaN;
@@ -302,11 +256,11 @@ namespace JobExporterWF
             }
 
             // test
-            //Console.WriteLine("==== ARBOR ====");
-            //foreach (ArborStratix a in lstArborStratix)
-            //{
-            //    Console.WriteLine(a.Job.ToString() + " / " + a.Wdth.ToString() + " / " + a.Nbr.ToString());
-            //}
+            Console.WriteLine("==== STRATIX ARBOR ====");
+            foreach (ArborStratix a in lstArborStratix)
+            {
+                Console.WriteLine(a.Job.ToString() + " / " + a.Wdth.ToString() + " / " + a.Nbr.ToString());
+            }
 
             // Get list of start Pos for each setup
             List<int> lstStartPos = new List<int>();
@@ -317,45 +271,65 @@ namespace JobExporterWF
             // Expand lstArborStratix to assign Job, setup and position
             List<ArborExp> lstExp = new List<ArborExp>();
 
-            int aPos = 0; //Arbor position 1 to X
-            int aSetupCount = 0;
+            int aPos = 0; // Arbor position 1 to X
+            int aSetupCount = 0; // Keep track of the setup you are on
+            int posLookAhead = 0; // Look at next setup position
 
-            // Suffix on Job is current setup on Job
-            // First setup Pos=1, but 1st object in List<> = 0
-            int aSetup = lstStartPos[aSetupCount];
+            int lastSetupPos = lstStartPos[lstStartPos.Count-1];
+            int currSetupPos = lstStartPos[aSetupCount];
+
+            // Get value at element 0 in lstStartPos
+            // This should always be 1
+            int aSetupSuffix = lstStartPos[aSetupCount];
 
             try
-            {
+            {   
+                // Get each row in lstArborStratix - the way Stratix stores the arbor data in IPTFRA_REC
                 foreach (ArborStratix a in lstArborStratix)
                 {
-                    //Look at each cut in the setup and expand into setup with only single cuts
+                    Console.WriteLine("Before loop - aPos: " + aPos + " / aSetupCount: " + aSetupCount + " / aSetupSuffix: " + aSetupSuffix);
+
+                    //Look at each cut in the setup and insert that cut into List<ArborExp> Nbr times
                     for (int i = 1; i <= a.Nbr; i++)
                     {
                         // Start position counter with 1, then ++ for each pass
                         aPos++;
 
-                        // If there is only on setup start Pos
+                        // When currSetupPos = lastSetUpPos, you can no longer look ahead
+                        // aSetupSuffix last time through loop wil be used for the rest 
+                        // of the cuts in the setup
                         if (lstStartPos.Count == 1)
-                            aSetup = 1;
-                        else
+                            aSetupSuffix = 1;
+                        else 
                         {
-                            // Look ahead to start Pos of next setup
-                            if (aSetupCount <= lstStartPos.Count)
+                            // Keep looking ahead at next setup start position, so long as the current
+                            // start position is < the last startup position. If equal, looking ahead
+                            // will cause an index out of range error
+                            if (currSetupPos < lastSetupPos)
                             {
-                                // If current position = start Pos of next setup, increment the setup count
-                                if (lstStartPos[aSetupCount + 1] == aPos)
-                                    aSetup++;
+                                posLookAhead = lstStartPos[aSetupCount + 1];
+
+                                // If current arbor position = start postion of next setup, increment the setup count suffix                                
+                                if (posLookAhead == aPos)
+                                {
+                                    currSetupPos = posLookAhead;
+
+                                    aSetupSuffix++;
+                                    aSetupCount++;
+                                }
                             }
                         }
 
                         ArborExp aExp = new ArborExp();
 
-                        aExp.Job = string.Concat(job.ToString(), "-", aSetup.ToString());
+                        aExp.Job = string.Concat(job.ToString(), "-", aSetupSuffix.ToString());
                         aExp.Wdth = a.Wdth;
                         aExp.Pos = aPos;
 
                         lstExp.Add(aExp);
                     }
+
+                    Console.WriteLine("After loop - aPos: " + aPos + " / aSetupCount: " + aSetupCount + " / aSetupSuffix: " + aSetupSuffix);
                 }
             }
             catch (Exception ex)
@@ -367,11 +341,11 @@ namespace JobExporterWF
 
             pBar.Value = 72;
 
-            //Console.WriteLine("==== ARBOR EXPANDED ====");
-            //foreach (ArborExp f in lstExp)
-            //{
-            //    Console.WriteLine(f.Job + " / " + f.Wdth.ToString() + " / " + f.Pos.ToString());
-            //}
+            Console.WriteLine("==== ARBOR EXPANDED ====");
+            foreach (ArborExp f in lstExp)
+            {
+                Console.WriteLine(f.Job + " / " + f.Wdth.ToString() + " / " + f.Pos.ToString());
+            }
 
             int indexClp = 0;
 
@@ -416,11 +390,11 @@ namespace JobExporterWF
                 }
             }
 
-            //Console.WriteLine("==== ARBOR COLLAPSED ====");
-            //foreach (ArborStratix f in lstArborClp)
-            //{
-            //    Console.WriteLine(f.Job + " / " + f.Wdth.ToString() + " / " + f.Nbr.ToString());
-            //}
+            Console.WriteLine("==== ARBOR COLLAPSED ====");
+            foreach (ArborStratix f in lstArborClp)
+            {
+                Console.WriteLine(f.Job + " / " + f.Wdth.ToString() + " / " + f.Nbr.ToString());
+            }
 
             // Build MultFile
             List<MultFile> lstMults = new List<MultFile>();
@@ -432,8 +406,8 @@ namespace JobExporterWF
                 m.Job = a.Job;
                 m.Qty = a.Nbr;
                 m.Size = a.Wdth;
-                m.WdthP = Convert.ToDecimal(lstDetail.Where(x => x.Wdth == a.Wdth).Select(x => x.WdthP).FirstOrDefault());
-                m.WdthN = Convert.ToDecimal(lstDetail.Where(x => x.Wdth == a.Wdth).Select(x => x.WdthN).FirstOrDefault());
+                m.WdthP = Convert.ToDecimal(lstPlanned.Where(x => x.Wdth == a.Wdth).Select(x => x.WdthP).FirstOrDefault());
+                m.WdthN = Convert.ToDecimal(lstPlanned.Where(x => x.Wdth == a.Wdth).Select(x => x.WdthN).FirstOrDefault());
 
                 lstMults.Add(m);
             }
