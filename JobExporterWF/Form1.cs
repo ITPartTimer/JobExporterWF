@@ -42,14 +42,14 @@ namespace JobExporterWF
 
             // Not sure why, but neither will clear the ListViews
             lvHeader.Clear();
-            lvMults.Clear();         
+            lvMults.Clear();
 
-            /*
-             * Find Job in schedule iptpsh_rec.  If not found, a null 
-             * value is returned with a generic exception message. Format
-             * error message and return on catch so program does not continue.
-             */
             #region FindJob
+            /*********************************
+            Find Job in schedule iptpsh_rec.  If not found, a null 
+            value is returned with a generic exception message. Format
+            error message and return on catch so program does not continue.
+            **********************************/
             DataAccess objFindJob = new DataAccess();
 
             bool fnd = false;
@@ -72,12 +72,12 @@ namespace JobExporterWF
             #endregion
 
             #region Consume
-            /*
+            /*********************************
             Get Planned Consumption from Stratix.
             The number of rows is the number of setups on this Job
             Sort by Seq.  Use Pos information to determine where 
             at what arbor position to start each setup
-            */
+            *********************************/
             DataAccess objConsume = new DataAccess();
 
             List<Consume> lstConsume = new List<Consume>();
@@ -104,11 +104,11 @@ namespace JobExporterWF
             #endregion
 
             #region Planned
-            /*
-           Get Planned Production from Stratix.
-           This is a list of unique SOs on the Job.
-           Join to CPS table to get width and tolernaces
-           */
+            /**********************************
+            Get Planned Production from Stratix.
+            This is a list of unique SOs on the Job.
+            Join to CPS table to get width and tolernaces
+           **********************************/
             DataAccess objPlanned = new DataAccess();
 
             List<Planned> lstPlanned = new List<Planned>();
@@ -128,7 +128,7 @@ namespace JobExporterWF
             #endregion
 
             #region Ga
-            /*
+            /**********************************
             Get the Gauge from Planned consumption
             
             Determine the most constrained gauge range from the CPS on the Job
@@ -138,15 +138,12 @@ namespace JobExporterWF
             on the Job.  In this case you know the MIN and MAX allowable gauge.
             Use the Ga from planned consumtion to determine the +/- range.  It 
             might not be even or always positive, but the MIN and MAX will be correct.
-            */
+            **********************************/
 
             // Consume query was ordered by seq, so first member contains the TagNo for the job
             string tag = lstConsume.Select(x => x.Tag).First().ToString();
             decimal ga = (decimal)lstConsume.Select(x => x.Ga).First();
-
-            // NEED TO FIX.  FIND A BETTER WAY TO FIND GA ON JOB
-            // If Toll or some instance I have not figured out, thre will be
-            // NO tag in the planned consumption.  Join to Transaction Common by PO will not work.
+          
             if (string.IsNullOrEmpty(tag))
             {
                 lblError.Text = "No tag found on Job";
@@ -176,9 +173,9 @@ namespace JobExporterWF
             #endregion
 
             #region Build HdrFile          
-            /*
+            /**********************************
             Build List<HdrFile>
-            */
+            **********************************/
 
             // Determine number of setups
             int numSetups = lstConsume.Count;
@@ -235,9 +232,9 @@ namespace JobExporterWF
             #endregion
 
             #region Build MultFile
-            /*
+            /**********************************
             Build MultFile
-            */
+            **********************************/
 
             // Get Arbor from Stratix
             DataAccess objArbor = new DataAccess();
@@ -409,6 +406,13 @@ namespace JobExporterWF
                 m.WdthP = Convert.ToDecimal(lstPlanned.Where(x => x.Wdth == a.Wdth).Select(x => x.WdthP).FirstOrDefault());
                 m.WdthN = Convert.ToDecimal(lstPlanned.Where(x => x.Wdth == a.Wdth).Select(x => x.WdthN).FirstOrDefault());
 
+                // If WdthN and WidthP = 0, cut is CTL or a reslit.  Use a default tolerance value.
+                if (m.WdthN == 0 && m.WdthP == 0)
+                {
+                    m.WdthN = Convert.ToDecimal(ConfigurationManager.AppSettings.Get("DefaultWdthT"));
+                    m.WdthP = Convert.ToDecimal(ConfigurationManager.AppSettings.Get("DefaultWdthT"));
+                }
+                    
                 lstMults.Add(m);
             }
 
@@ -423,6 +427,9 @@ namespace JobExporterWF
             #endregion
 
             #region XLSExports
+            /*********************************
+            Export Header and Mult List<Object> to XLS
+            *********************************/
             ExcelExport objXLS = new ExcelExport();
 
             try
