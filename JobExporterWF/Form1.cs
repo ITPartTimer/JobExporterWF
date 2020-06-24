@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using JobExporterWF.Models;
 using JobExporterWF.DAL;
 using JobExporterWF.XLS;
+using JobExporterWF.Log;
 
 namespace JobExporterWF
 {
@@ -24,16 +25,34 @@ namespace JobExporterWF
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            this.Text = ConfigurationManager.AppSettings["Title"];
+
             // Init erro and progress bar
             lblError.Text = "";
             lblFiles.Text = "";
             pBar.Value = 0;
+
+            // Get list of knives from app.config and bind to lvKnives
+            var lstKnives = new List<string>(ConfigurationManager.AppSettings["Knives"].Split(new char[] { ';' }));
+            var bindingListKnives = new BindingList<decimal>();
+
+            foreach(string k in lstKnives)
+            {
+                bindingListKnives.Add(Convert.ToDecimal(k));
+            }
+   
+            var sourceKnives = new BindingSource(bindingListKnives, null);
+
+            lvKnives.DataSource = sourceKnives;
         }
 
         // This method will not execute unless txtJob passes validation
         private void btnExport_Click(object sender, EventArgs e)
         {         
             string job = txtJob.Text;
+            decimal knifeDefault = decimal.Parse(lvKnives.GetItemText(lvKnives.SelectedItem));
+
+            Logger.LogWrite("MSG", "Start Job: " + job + " - " + DateTime.Now.ToString());
 
             // Clear
             lblError.Text = "";
@@ -42,7 +61,7 @@ namespace JobExporterWF
 
             // Not sure why, but neither will clear the ListViews
             lvHeader.Clear();
-            lvMults.Clear();
+            lvMults.Clear();         
 
             #region FindJob
             /*********************************
@@ -67,6 +86,9 @@ namespace JobExporterWF
 
                 lblError.Text = msg;
 
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
             #endregion
@@ -90,6 +112,10 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
                      
@@ -121,6 +147,10 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
 
@@ -166,6 +196,10 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
 
@@ -249,6 +283,10 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
 
@@ -333,6 +371,10 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
 
@@ -400,6 +442,7 @@ namespace JobExporterWF
             {
                 MultFile m = new MultFile();
 
+                m.Knife = knifeDefault;
                 m.Job = a.Job;
                 m.Qty = a.Nbr;
                 m.Size = a.Wdth;
@@ -440,6 +483,10 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
 
@@ -451,6 +498,25 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
+                return;
+            }
+
+            try
+            {
+                objXLS.WriteJobHist(lstHdr,lstMults);
+            }
+            catch (Exception ex)
+            {
+                lblError.Text = ex.Message;
+                pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
             #endregion
@@ -465,6 +531,10 @@ namespace JobExporterWF
             {
                 lblError.Text = ex.Message;
                 pBar.Value = 0;
+
+                Logger.LogWrite("EXC", ex);
+                Logger.LogWrite("MSG", "Return");
+
                 return;
             }
 
@@ -477,6 +547,8 @@ namespace JobExporterWF
             string destPath = ConfigurationManager.AppSettings.Get("DestPath");
 
             lblFiles.Text = "Files written:\n" + Path.Combine(destPath, hdrFileName) + "\n" + Path.Combine(destPath, multFileName);
+
+            Logger.LogWrite("MSG", "End Job: " + job + " - " + DateTime.Now.ToString());
             #endregion
         }
 
@@ -639,5 +711,6 @@ namespace JobExporterWF
 
             e.Cancel = cancel;
         }
+  
     }
 }

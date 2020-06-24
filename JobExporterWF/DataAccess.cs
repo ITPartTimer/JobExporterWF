@@ -22,7 +22,7 @@ namespace JobExporterWF.DAL
             bool fnd = false;
             string j = "";
 
-            OdbcConnection conn = new OdbcConnection(STRATIXDataConnString);
+            OdbcConnection conn = new OdbcConnection(ODBCDataConnString);
             //OdbcConnection conn = new OdbcConnection("DSN=Invera;UID=livcalod;Pwd=livcalod");
 
             try
@@ -73,7 +73,7 @@ namespace JobExporterWF.DAL
         {
             List<ArborStratix> lstArbor = new List<ArborStratix>();
 
-            OdbcConnection conn = new OdbcConnection(STRATIXDataConnString);
+            OdbcConnection conn = new OdbcConnection(ODBCDataConnString);
             //OdbcConnection conn = new OdbcConnection("DSN=Invera;UID=livcalod;Pwd=livcalod");
 
             try
@@ -146,7 +146,7 @@ namespace JobExporterWF.DAL
         {
             List<Consume> lstConsume = new List<Consume>();
 
-            OdbcConnection conn = new OdbcConnection(STRATIXDataConnString);
+            OdbcConnection conn = new OdbcConnection(ODBCDataConnString);
 
             try
             {
@@ -203,7 +203,7 @@ namespace JobExporterWF.DAL
         {
             List<Planned> lstPlanned = new List<Planned>();
 
-            OdbcConnection conn = new OdbcConnection(STRATIXDataConnString);
+            OdbcConnection conn = new OdbcConnection(ODBCDataConnString);
 
             try
             {

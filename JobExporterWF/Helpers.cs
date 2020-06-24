@@ -12,33 +12,36 @@ namespace JobExporterWF.DAL
 {
     public class Helpers
     {
-        private string _STRATIXDataConnString;
+        private string _ODBCDataConnString;
 
         // --------------------------------------------
         // Database connection string
-        // --------------------------------------------
-        public string STRATIXDataConnString
+        // --------------------------------------------      
+
+        // ODBC to Stratix using DSN names on local machine
+        public string ODBCDataConnString
         {
             get
             {
-                //_STRATIXDataConnString = "Data Source=THINKM81\\SQL2014DEV;Initial Catalog=STRATIXData;User ID=ReportRunner;Password=vH1bC1J6W";
-                string dsn = ConfigurationManager.AppSettings.Get("DSN");
+                // DSN stored in System Environment variables
+                string dsn = Environment.GetEnvironmentVariable("sysStratixDSN");
+                string uid = Environment.GetEnvironmentVariable("sysStratixUID");
+                string pwd = Environment.GetEnvironmentVariable("sysStratixPWD");
 
-                //_STRATIXDataConnString = "DSN=Invera;UID=livcalod;Pwd=livcalod";
-                _STRATIXDataConnString = "DSN=" + dsn + ";UID=livcalod;Pwd=livcalod";
+                _ODBCDataConnString = "DSN=" + dsn + ";UID=" + uid + ";Pwd=" + pwd;
 
-                if (string.IsNullOrEmpty(_STRATIXDataConnString))
+                if (string.IsNullOrEmpty(_ODBCDataConnString))
                 {
                     throw new NullReferenceException("Empty Connection String");
                 }
                 else
                 {
-                    return _STRATIXDataConnString;
+                    return _ODBCDataConnString;
                 }
 
             }
 
-        } //STRATIXDataConnString
+        }
 
         // Is the number integer.  True, if conversion is a success
         public static bool IsInteger (string job)

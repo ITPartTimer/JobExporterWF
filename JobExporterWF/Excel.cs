@@ -134,6 +134,89 @@ namespace JobExporterWF.XLS
             }
         }
 
-        
+        // Append Job Header and Mult data to JobHist.xls file
+        public void WriteJobHist(List<HdrFile> hdr, List<MultFile> mults)
+        {
+            // Copy an empty file to the destination each time
+            string jobHistFileName = ConfigurationManager.AppSettings.Get("JobHistFileName");
+            string jobHistPath = ConfigurationManager.AppSettings.Get("JobHistPath");
+
+            // initialize text used in OleDbCommand
+            string cmdText = "";
+
+            string excelConnString = @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + Path.Combine(jobHistPath, jobHistFileName) + @";Extended Properties=""Excel 8.0;HDR=YES;""";
+
+            using (OleDbConnection eConn = new OleDbConnection(excelConnString))
+            {
+                try
+                {
+                    eConn.Open();
+
+                    OleDbCommand eCmd = new OleDbCommand();
+
+                    eCmd.Connection = eConn;
+
+                    // Loop through each record and add yesterday details to XLS
+                    foreach (HdrFile m in hdr)
+                    {
+                        // Use parameters to insert into XLS
+                        cmdText = "Insert into [Header$] (JobRef,Cust,Mtl,Wdth,Wgt,Ga,KClr,HClr,GaP,GaM,JobNote)" +
+                                            "Values(@job,@cust,@mtl,@wdth,@wgt,@thk,@kclear,@clear,@gplus,@gminus,@note)";
+
+                        eCmd.CommandText = cmdText;
+
+                        eCmd.Parameters.AddRange(new OleDbParameter[]
+                        {
+                                    new OleDbParameter("@job", m.Job),
+                                    new OleDbParameter("@cust", m.Cust),
+                                    new OleDbParameter("@mtl", m.Mtl),
+                                    new OleDbParameter("@wdth", m.Wdth.ToString()),
+                                    new OleDbParameter("@wgt", m.Wgt.ToString()),
+                                    new OleDbParameter("@thk", m.Ga.ToString()),
+                                    new OleDbParameter("@kclear", m.KnifeClr.ToString()),
+                                    new OleDbParameter("@clear", m.Clr.ToString()),
+                                    new OleDbParameter("@gplus", m.GaP.ToString()),
+                                    new OleDbParameter("@gminus", m.GaN.ToString()),
+                                    new OleDbParameter("@note", m.Note),
+                        });
+
+                        eCmd.ExecuteNonQuery();
+
+                        // Need to clear Parameters on each pass
+                        eCmd.Parameters.Clear();
+                    }
+
+                    // Loop through each record and add yesterday details to XLS
+                    foreach (MultFile m in mults)
+                    {
+                        // Use parameters to insert into XLS
+                        cmdText = "Insert into [Mult$] (JobRef,Cust,Qty,Wdth,WdthP,WdthM,KSize)" +
+                            "Values(@job,@cust,@qty,@wdth,@wplus,@wminus,@knife)";
+
+                        eCmd.CommandText = cmdText;
+
+                        eCmd.Parameters.AddRange(new OleDbParameter[]
+                        {
+                                    new OleDbParameter("@job", m.Job),
+                                    new OleDbParameter("@cust", m.Cust),
+                                    new OleDbParameter("@qty", m.Qty.ToString()),
+                                    new OleDbParameter("@wdth", m.Size.ToString()),
+                                    new OleDbParameter("@wplus", m.WdthP.ToString()),
+                                    new OleDbParameter("@wminus", m.WdthN.ToString()),
+                                    new OleDbParameter("@knife", m.Knife.ToString()),
+                        });
+
+                        eCmd.ExecuteNonQuery();
+
+                        // Need to clear Parameters on each pass
+                        eCmd.Parameters.Clear();
+                    }
+                }
+                catch (OleDbException)
+                {
+                    throw;
+                }              
+            }
+        }
     }
 }
